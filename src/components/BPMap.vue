@@ -3,6 +3,8 @@ import { type Raw, markRaw, onMounted, shallowRef } from "vue";
 
 import maplibregl from "maplibre-gl";
 
+import LayerFilter from "./LayerFilter.vue";
+
 const map = shallowRef<Raw<unknown>>();
 const mapContainer = shallowRef();
 
@@ -21,6 +23,7 @@ onMounted(() => {
 
 <template>
   <div class="map" ref="mapContainer"></div>
+  <LayerFilter />
 </template>
 
 <style scoped>
