@@ -1,29 +1,25 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
-import { setAllLayerControlsTo } from "@/utils/setAllLayerControlsTo";
-
 import type { LayerControls } from "@/types";
 
-const layerControls = ref<LayerControls>({
-  pinball: false,
-  sensors: false,
-});
+const emits = defineEmits<{
+  click: [layerControls: LayerControls];
+  change: [layerControls: LayerControls];
+}>();
 
-const handleControlBtn = () => {
-  const layerControlsValues: LayerControls = layerControls.value;
-  const anyControlIsChecked: boolean = Boolean(
-    Object.keys(layerControlsValues).filter(
-      (key) => layerControlsValues[key as keyof LayerControls] === true
-    ).length
-  );
+const storedLayerControls: string = localStorage.getItem("layerControls") || "";
+const layerControls = ref<LayerControls>(
+  storedLayerControls
+    ? JSON.parse(storedLayerControls)
+    : {
+        pinball: false,
+        sensors: false,
+      }
+);
 
-  if (anyControlIsChecked) {
-    setAllLayerControlsTo(layerControlsValues, false);
-    return;
-  }
-
-  setAllLayerControlsTo(layerControlsValues, true);
+const handleControlsChange = () => {
+  emits("change", layerControls.value);
 };
 </script>
 
@@ -40,16 +36,10 @@ const handleControlBtn = () => {
         :id="controlName"
         class="layer-input"
         type="checkbox"
+        @change="handleControlsChange"
       />
       {{ controlName }}
     </label>
-    <button class="layer-control-btn" type="button" @click="handleControlBtn">
-      {{
-        layerControls.pinball || layerControls.sensors
-          ? "clear all"
-          : "select all"
-      }}
-    </button>
   </nav>
 </template>
 
@@ -89,15 +79,5 @@ const handleControlBtn = () => {
 .layer-input {
   cursor: pointer;
   margin-right: 5px;
-}
-
-.layer-control-btn {
-  padding: 5px;
-  background: #add8e6;
-  border: none;
-  border-radius: 5px;
-
-  font-weight: 800;
-  text-transform: uppercase;
 }
 </style>
