@@ -1,14 +1,36 @@
 <script setup lang="ts">
-import { type Raw, markRaw, onMounted, shallowRef } from "vue";
+import {
+  type Raw,
+  markRaw,
+  onMounted,
+  shallowRef,
+  onUnmounted,
+  ref,
+} from "vue";
 
 import maplibregl, { Map } from "maplibre-gl";
 
 import LayerFilter from "./LayerFilter.vue";
 import CenterControls from "./CenterControls.vue";
-import type { Coordinates } from "@/types";
+import LoadingSpinner from "./LoadingSpinner.vue";
+
+import { usePinballMarksStore } from "@/stores/pinballMarks";
+
+import { displayPinballMarkOnMap } from "@/utils/pinballMapHandlers";
+
+import type { Coordinates, LayerControls } from "@/types";
 
 const map = shallowRef<Raw<Map>>();
 const mapContainer = shallowRef<string | HTMLElement>("");
+
+const isLoading = ref<boolean>(false);
+
+const pinballMarksStore = usePinballMarksStore();
+
+const storedLayerControls = localStorage.getItem("layerControls") || null;
+const parsedStoredLayerControls = storedLayerControls
+  ? JSON.parse(storedLayerControls)
+  : null;
 
 onMounted(() => {
   map.value = markRaw(
@@ -20,7 +42,61 @@ onMounted(() => {
       zoom: 9,
     })
   );
+
+  if (
+    pinballMarksStore.pinballMarks.length &&
+    parsedStoredLayerControls.pinball
+  ) {
+    console.log("stored");
+    map.value!.on("load", () => {
+      displayPinballMarkOnMap(map.value!, pinballMarksStore.pinballMarks);
+      // pinballMarksStore.pinballMarks.forEach((location, index) => {
+      //   map.value!.addLayer({
+      //     id: location.properties.name + index,
+      //     type: "circle",
+      //     source: "pinball-points",
+      //     paint: {
+      //       "circle-color": "#11b4da",
+      //       "circle-radius": 4,
+      //       "circle-stroke-width": 1,
+      //       "circle-stroke-color": "#fff",
+      //     },
+      //   });
+      //   // new Marker({ color: "#111" })
+      //   //   .setLngLat(location.geometry.coordinates)
+      //   //   .addTo(map.value!);
+      // });
+    });
+  }
 });
+
+onUnmounted(() => {
+  map.value?.remove();
+});
+
+const handleLayerControlChange = async (layerControls: LayerControls) => {
+  localStorage.setItem("layerControls", JSON.stringify(layerControls));
+
+  if (layerControls.pinball && !pinballMarksStore.pinballMarks.length) {
+    isLoading.value = true;
+
+    await pinballMarksStore.getPinballLocations();
+
+    isLoading.value = false;
+
+    displayPinballMarkOnMap(map.value!, pinballMarksStore.pinballMarks);
+  }
+
+  if (layerControls.pinball && pinballMarksStore.pinballMarks.length) {
+    displayPinballMarkOnMap(map.value!, pinballMarksStore.pinballMarks);
+  }
+
+  if (!layerControls.pinball) {
+    pinballMarksStore.pinballMarks.forEach((location, index) =>
+      map.value!.removeLayer(location.properties.name + index)
+    );
+  }
+};
 
 // sets map center to Portland or Berlin
 const handleCenterControlsClick = (coordinates: Coordinates) => {
@@ -31,9 +107,10 @@ const handleCenterControlsClick = (coordinates: Coordinates) => {
 </script>
 
 <template>
+  <LoadingSpinner :isLoading="isLoading" />
   <div class="map" ref="mapContainer"></div>
   <template v-if="map">
-    <LayerFilter />
+    <LayerFilter @change="handleLayerControlChange" />
     <CenterControls @click="handleCenterControlsClick" />
   </template>
 </template>
