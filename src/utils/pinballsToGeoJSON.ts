@@ -1,8 +1,8 @@
-import type { PinballLocations, GeoJSON } from "./../types/index";
+import type { PinballLocations, GeoJSONFeature } from "./../types/index";
 
-export const pinballsToGeoJSON = (
+export const pinballsToGeoJSONFeature = (
   pinballLocations: PinballLocations
-): GeoJSON => {
+): GeoJSONFeature => {
   return {
     type: "Feature",
     geometry: {
