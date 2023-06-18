@@ -4,16 +4,37 @@ export interface LayerControls {
 }
 
 export type Coordinates = [number, number];
+export type SensorsCoordinates = [number, number, number?];
 
-export interface GeoJSON {
+export interface GeoJSONFeature {
   type: string;
   geometry: {
     type: string;
-    coordinates: Coordinates;
+    coordinates: Coordinates | SensorsCoordinates;
   };
   properties: {
     name: string;
   };
+}
+
+export interface SensorsGeoJSONFeature extends GeoJSONFeature {
+  properties: {
+    name: string;
+    createdAt?: string;
+    description?: string;
+    exposure?: string;
+    grouptag?: Array<unknown>;
+    lastMeasurementAt?: string;
+    model?: string;
+    sensors?: Array<unknown>;
+    updatedAt?: string;
+    _id?: string;
+  };
+}
+
+export interface GeoJSON {
+  type: "FeatureCollection";
+  features: Array<GeoJSONFeature | SensorsGeoJSONFeature>;
 }
 
 export interface PinballLocations {
