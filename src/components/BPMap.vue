@@ -15,8 +15,9 @@ import CenterControls from "./CenterControls.vue";
 import LoadingSpinner from "./LoadingSpinner.vue";
 
 import { usePinballMarksStore } from "@/stores/pinballMarks";
+import { useSensorMarksStore } from "@/stores/sensorMarks";
 
-import { displayPinballMarkOnMap } from "@/utils/pinballMapHandlers";
+import { displayMarksOnMap } from "@/utils/displayLayerHandlers";
 
 import type { Coordinates, LayerControls } from "@/types";
 
@@ -26,11 +27,12 @@ const mapContainer = shallowRef<string | HTMLElement>("");
 const isLoading = ref<boolean>(false);
 
 const pinballMarksStore = usePinballMarksStore();
+const sensorMarksStore = useSensorMarksStore();
 
 const storedLayerControls = localStorage.getItem("layerControls") || null;
 const parsedStoredLayerControls = storedLayerControls
   ? JSON.parse(storedLayerControls)
-  : null;
+  : {};
 
 onMounted(() => {
   map.value = markRaw(
@@ -43,59 +45,75 @@ onMounted(() => {
     })
   );
 
-  if (
-    pinballMarksStore.pinballMarks.length &&
-    parsedStoredLayerControls.pinball
-  ) {
-    console.log("stored");
-    map.value!.on("load", () => {
-      displayPinballMarkOnMap(map.value!, pinballMarksStore.pinballMarks);
-      // pinballMarksStore.pinballMarks.forEach((location, index) => {
-      //   map.value!.addLayer({
-      //     id: location.properties.name + index,
-      //     type: "circle",
-      //     source: "pinball-points",
-      //     paint: {
-      //       "circle-color": "#11b4da",
-      //       "circle-radius": 4,
-      //       "circle-stroke-width": 1,
-      //       "circle-stroke-color": "#fff",
-      //     },
-      //   });
-      //   // new Marker({ color: "#111" })
-      //   //   .setLngLat(location.geometry.coordinates)
-      //   //   .addTo(map.value!);
-      // });
-    });
-  }
+  map.value!.on("load", async () => {
+    isLoading.value = true;
+
+    if (parsedStoredLayerControls.pinball) {
+      await pinballMarksStore.getPinballsData();
+
+      displayMarksOnMap(
+        map.value!,
+        "pinball-points",
+        pinballMarksStore.pinballMarks
+      );
+    }
+
+    if (parsedStoredLayerControls.sensors) {
+      await sensorMarksStore.getSensorsData();
+
+      displayMarksOnMap(
+        map.value!,
+        "sensors-points",
+        sensorMarksStore.sensorMarks
+      );
+    }
+
+    isLoading.value = false;
+  });
 });
 
 onUnmounted(() => {
   map.value?.remove();
 });
 
-const handleLayerControlChange = async (layerControls: LayerControls) => {
+// handles LayerFilter emit('change')
+const handleLayerControlChange = async (
+  layerControls: LayerControls,
+  controlName: keyof LayerControls
+) => {
   localStorage.setItem("layerControls", JSON.stringify(layerControls));
 
-  if (layerControls.pinball && !pinballMarksStore.pinballMarks.length) {
-    isLoading.value = true;
+  isLoading.value = true;
 
-    await pinballMarksStore.getPinballLocations();
+  if (controlName === "pinball") {
+    if (layerControls.pinball) {
+      await pinballMarksStore.getPinballsData();
 
-    isLoading.value = false;
-
-    displayPinballMarkOnMap(map.value!, pinballMarksStore.pinballMarks);
+      displayMarksOnMap(
+        map.value!,
+        "pinball-points",
+        pinballMarksStore.pinballMarks
+      );
+    } else {
+      map.value!.removeLayer("pinball-points");
+    }
   }
 
-  if (layerControls.pinball && pinballMarksStore.pinballMarks.length) {
-    displayPinballMarkOnMap(map.value!, pinballMarksStore.pinballMarks);
+  if (controlName === "sensors") {
+    if (layerControls.sensors) {
+      await sensorMarksStore.getSensorsData();
+
+      displayMarksOnMap(
+        map.value!,
+        "sensors-points",
+        sensorMarksStore.sensorMarks
+      );
+    } else {
+      map.value!.removeLayer("sensors-points");
+    }
   }
 
-  if (!layerControls.pinball) {
-    pinballMarksStore.pinballMarks.forEach((location, index) =>
-      map.value!.removeLayer(location.properties.name + index)
-    );
-  }
+  isLoading.value = false;
 };
 
 // sets map center to Portland or Berlin
