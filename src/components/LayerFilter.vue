@@ -4,8 +4,7 @@ import { ref } from "vue";
 import type { LayerControls } from "@/types";
 
 const emits = defineEmits<{
-  click: [layerControls: LayerControls];
-  change: [layerControls: LayerControls];
+  change: [layerControls: LayerControls, controlName: keyof LayerControls];
 }>();
 
 const storedLayerControls: string = localStorage.getItem("layerControls") || "";
@@ -18,8 +17,8 @@ const layerControls = ref<LayerControls>(
       }
 );
 
-const handleControlsChange = () => {
-  emits("change", layerControls.value);
+const handleControlsChange = (controlName: keyof LayerControls) => {
+  emits("change", layerControls.value, controlName);
 };
 </script>
 
@@ -36,7 +35,7 @@ const handleControlsChange = () => {
         :id="controlName"
         class="layer-input"
         type="checkbox"
-        @change="handleControlsChange"
+        @change="handleControlsChange(controlName)"
       />
       {{ controlName }}
     </label>
